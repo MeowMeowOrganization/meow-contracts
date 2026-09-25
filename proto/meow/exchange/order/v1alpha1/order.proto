@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package meow.exchange.order.v1alpha1;
+
+enum OrderSide {
+  ORDER_SIDE_UNSPECIFIED = 0;
+  ORDER_SIDE_BUY = 1;
+  ORDER_SIDE_SELL = 2;
+}
+
+enum TimeInForce {
+  TIME_IN_FORCE_UNSPECIFIED = 0;
+  TIME_IN_FORCE_GTC = 1;
+}
+
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0;
+  ORDER_STATUS_ACCEPTED = 1;
+  ORDER_STATUS_OPEN = 2;
+  ORDER_STATUS_PARTIALLY_FILLED = 3;
+  ORDER_STATUS_FILLED = 4;
+  ORDER_STATUS_REJECTED = 5;
+  ORDER_STATUS_CANCELED = 6;
+}
+
+// User-facing representation before canonical normalization.
+//
+// Price and quantity MUST be exact base-10 strings.
+// Scientific notation and floating-point interpretation are forbidden.
+
+message LimitOrderSubmission {
+  string client_order_id = 1;
+  string market_id = 2;
+  OrderSide side = 3;
+  string price = 4;
+  string quantity = 5;
+  TimeInForce time_in_force = 6;
+}
+
+// Canonically admitted LIMIT order.
+
+message LimitOrder {
+  string order_id = 1;
+  string client_order_id = 2;
+  string account_id = 3;
+  string market_id = 4;
+
+  OrderSide side = 5;
+
+  uint64 price_units = 6;
+  uint64 quantity_base_atoms = 7;
+  uint64 filled_base_atoms = 8;
+
+  TimeInForce time_in_force = 9;
+  OrderStatus status = 10;
+}

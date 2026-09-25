@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package meow.exchange.marketdata.v1alpha1;
+
+import "meow/exchange/order/v1alpha1/order.proto";
+
+message TradeTick {
+  string trade_id = 1;
+  string market_id = 2;
+
+  uint64 price_units = 3;
+  uint64 base_quantity_atoms = 4;
+  uint64 quote_quantity_atoms = 5;
+
+  // The taker/aggressor side.
+  meow.exchange.order.v1alpha1.OrderSide aggressor_side = 6;
+
+  uint64 match_sequence = 7;
+}

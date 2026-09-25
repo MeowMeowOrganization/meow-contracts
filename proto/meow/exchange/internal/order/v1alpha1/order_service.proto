@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package meow.exchange.internal.order.v1alpha1;
+
+import "meow/exchange/order/v1alpha1/order.proto";
+
+service OrderService {
+  rpc SubmitLimitOrder(SubmitLimitOrderRequest) returns (SubmitLimitOrderResponse);
+}
+
+message SubmitLimitOrderRequest {
+  // Supplied by the trusted Gateway after authentication.
+  string account_id = 1;
+
+  meow.exchange.order.v1alpha1.LimitOrderSubmission order = 2;
+}
+
+message SubmitLimitOrderResponse {
+  meow.exchange.order.v1alpha1.LimitOrder order = 1;
+}

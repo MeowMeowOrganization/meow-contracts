@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package meow.exchange.trade.v1alpha1;
+
+import "meow/exchange/order/v1alpha1/order.proto";
+
+message TradeExecutedd {
+  // Must be deterministically derived, not randomly generated during matching.
+  string trade_id = 1;
+
+  string market_id = 2;
+
+  string maker_order_id = 3;
+  string taker_order_id = 4;
+
+  string maker_account_id = 5;
+  string taker_account_id = 6;
+
+  meow.exchange.order.v1alpha1.OrderSide maker_side = 7;
+
+  uint64 price_units = 8;
+
+  uint64 base_quantity_atoms = 9;
+  uint64 quote_quantity_atoms = 10;
+
+  // Deterministic sequence within the market matching stream.
+  uint64 match_sequence = 11;
+}

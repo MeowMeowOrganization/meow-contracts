@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package meow.exchange.order.v1alpha1;
+
+import "meow/exchange/order/v1alpha1/order.proto";
+
+// Canonical command submitted to the matching-engine boundary.
+//
+// No decimal parsing or client-level idempotency is perfomed by the matching engine.
+
+message PlaceLimitOrderCommand {
+  // Globally unique and stable across retries.
+  string command_id = 1;
+
+  string order_id = 2;
+  string account_id = 3;
+  string market_id = 4;
+
+  OrderSide side = 5;
+
+  uint64 price_units = 6;
+  uint64 quantity_base_atoms = 7;
+
+  TimeInForce time_in_force = 8;
+}

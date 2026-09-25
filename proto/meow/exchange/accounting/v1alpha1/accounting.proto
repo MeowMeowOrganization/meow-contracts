@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package meow.exchange.accounting.v1alpha1;
+
+import "meow/exchange/common/v1alpha1/types.proto";
+
+enum ReservationStatus {
+  RESERVATION_STATUS_UNSPECIFIED = 0;
+  RESERVATION_STATUS_ACTIVE = 1;
+  RESERVATION_STATUS_CONSUMED = 2;
+  RESERVATION_STATUS_RELEASED = 3;
+}
+
+message Reservation {
+  string reservation_id = 1;
+  string account_id = 2;
+  string reference_id = 3;
+
+  meow.exchange.common.v1alpha1.AssetAmount original_amount = 4;
+
+  uint64 remaining_atoms = 5;
+
+  ReservationStatus status = 6;
+}
+
+enum SettlementStatus {
+  SETTLEMENT_STATUS_UNSPECIFIED = 0;
+  SETTLEMENT_STATUS_APPLIED = 1;
+}
+
+message Settlement {
+  string settlement_id = 1;
+  string trade_id = 2;
+  SettlementStatus status = 3;
+}

@@ -1,0 +1,15 @@
+version: v2
+
+modules:
+  - path: proto
+    name: buf.build/MeowMeowOrganization/meow-contracts
+
+lint:
+  use:
+    - STANDARD
+  disallow_comment_ignores: true
+
+breaking:
+  use:
+    - FILE
+  ignore_unstable_packages: false

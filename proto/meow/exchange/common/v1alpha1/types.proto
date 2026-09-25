@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package meow.exchange.common.v1alpha1;
+
+// An exact amount of an asset expressed in its smallest configured unit.
+//
+// Examples:
+// BTC with scale 8: 1 BTC = 100_000_000 atoms.
+// USDT with scale 6: 1 USDT = 1_000_000 atoms.
+
+message AssetAmount {
+  string asset = 1;
+  uint64 atoms = 2;
+}

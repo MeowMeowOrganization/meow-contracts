@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package meow.exchange.api.v1alpha1;
+
+import "meow/exchange/market/v1alpha1/market.proto";
+
+service MarketService {
+  rpc GetMarket(GetMarketRequest) returns (GetMarketResponse);
+}
+
+message GetMarketRequest {
+  string market_id = 1;
+}
+
+message GetMarketResponse {
+  meow.exchange.market.v1alpha1.Market market = 1;
+}

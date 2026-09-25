@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package meow.exchange.market.v1alpha1;
+
+enum MarketStatus {
+  MARKET_STATUS_UNSPECIFIED = 0;
+  MARKET_STATUS_ACTIVE = 1;
+  MARKET_STATUS_HALTED = 2;
+}
+
+message Market {
+  // Stable identifier such as BTC-USDT.
+  string market_id = 1;
+
+  string base_asset = 2;
+  string quote_asset = 3;
+
+  // Number of decimal places in the smallest base-asset unit.
+  uint32 base_asset_scale = 4;
+
+  // Number of decimal places in the smallest quote-asset unit.
+  uint32 quote_asset_scale = 5;
+
+  // Number of decimal places used by price_units.
+  uint32 price_scale = 6;
+
+  // Mininum permitted movement of price_units.
+  uint64 price_tick_units = 7;
+
+  // Quantity increment expressed in base-asset atoms.
+  uint64 quantity_step_base_atoms = 8;
+
+  uint64 min_quantity_base_atoms = 9;
+
+  uint64 min_notional_quote_atoms = 10;
+  MarketStatus status = 11;
+}
