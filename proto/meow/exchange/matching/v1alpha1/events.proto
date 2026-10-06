@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package meow.exchange.matching.v1alpha1;
+
+import "meow/exchange/order/v1alpha1/order.proto";
+
+// Canonical deterministic identity of one matching event.
+//
+// Maps directly to Rust:
+//
+// EventId {
+//		market_id,
+//		market_sequence,
+//		event_ordinal,
+// }
+//
+// No UUID, timestamp, Kafka partition, Kafka offset or database identity
+// participates in event identity.
+message MatchingEventId {
+  uint32 market_id = 1;
+
+  // Sequence of the committed command that produced this event.
+  //
+  // Sequence 0 represents pristine engine state and is never the sequence
+  // of a committed MatchingResult.
+  uint64 market_sequence = 2;
+
+  // Zero-based position within this command's event vector.
+  uint64 event_ordinal = 3;
+}
+
+// One deterministic event produced as part of a committed matching command.
+message SequencedMatchingEvent {
+  MatchingEventId event_id = 1;
+
+  oneof event {
+    Execution exectuion = 10;
+    OrderRejected order_rejected = 11;
+    OrderCancelled order_cancelled = 12;
+    CancelRejected cancel_rejected = 13;
+  }
+}
+
+// One deterministic maker/taker execution.
+//
+// Execution price is the resting maker's price.
+message Execution {
+  uint64 maker_order_id = 1;
+  uint64 taker_order_id = 2;
+
+  // Side of the incoming/aggressing order.
+  meow.exchange.order.v1alpha1.OrderSide taker_side = 3;
+
+  // Canonical price in configured tick counts.
+  // Must be >= 0; executions should always contain a positive price.
+  int64 price_ticks = 4;
+
+  // Canonical executed quantity in configured lot counts.
+  // Must be > 0.
+  int64 quantity_lots = 5;
+}
+
+enum MatchingOrderRejectionReason {
+  MATCHING_ORDER_REJECTION_REASON_UNSPECIFIED = 0;
+
+  MATCHING_ORDER_REJECTION_REASON_DUPLICATE_ORDER_ID = 1;
+
+  MATCHING_ORDER_REJECTION_REASON_RESTING_AGGREGATE_QUANTITY_OUT_OF_RANGE = 2;
+}
+
+// Deterministic business-level placement rejection.
+//
+// This is a normal committed matching result, not an engine failure.
+message OrderRejected {
+  uint64 order_id = 1;
+
+  MatchingOrderRejectionReason reason = 2;
+}
+
+// Successful cancellation of the entire currently-resting remainder.
+message OrderCancelled {
+  uint64 order_id = 1;
+
+  // Quantity removed from the resting book.
+  // Must be > 0.
+  int64 cancelled_quantity_lots = 2;
+}
+
+enum MatchingCancelRejectionReason {
+  MATCHING_CANCEL_REJECTION_REASON_UNSPECIFIED = 0;
+
+  MATCHING_CANCEL_REJECTION_REASON_UNKNOWN_ORDER = 1;
+  MATCHING_CANCEL_REJECTION_REASON_ALREADY_FILLED = 2;
+  MATCHING_CANCEL_REJECTION_REASON_ALREADY_CANCELLED = 3;
+  MATCHING_CANCEL_REJECTION_REASON_ALREADY_REJECTED = 4;
+}
+
+// Deterministic business-level cancellation rejection.
+//
+// Terminal-order cancellation and unknown-order cancellation are ordinary
+// domain outcomes, not fatal engine failures.
+message CancelRejected {
+  uint64 order_id = 1;
+
+  MatchingCancelRejectionReason reason = 2;
+}

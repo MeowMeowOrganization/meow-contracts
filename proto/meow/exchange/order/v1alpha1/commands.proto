@@ -4,12 +4,76 @@ package meow.exchange.order.v1alpha1;
 
 import "meow/exchange/order/v1alpha1/order.proto";
 
-// Canonical command submitted to the matching-engine boundary.
+// Order Service admission command contracts.
 //
-// No decimal parsing or client-level idempotency is perfomed by the matching engine.
+// These messages belong to the authenticated pre-Kafka order-admission
+// boundary.
+//
+// The canonical flow is:
+//
+//   Gateway
+//      |
+//      | authenticated account identity
+//      v
+//   Order Service
+//      |
+//      | validation
+//      | client_order_id idempotency
+//      | decimal parsing
+//      | market/tick/step validation
+//      | funds reservation
+//      | durable order admission
+//      | transactional outbox
+//      v
+//   meow.exchange.matching.v1alpha1.MatchingCommand
+//      |
+//      v
+//   Kafka matching command topic
+//
+// The messages in THIS file are therefore NOT matching-engine commands.
+//
+// In particular, the deterministic matching engine never parses the decimal
+// price or quantity strings carried by the admission request. The Order
+// Service converts them into the canonical matching representation
+// (MarketId, OrderId, PriceTicks, QuantityLots) before publishing a
+// meow.exchange.matching.v1alpha1.MatchingCommand.
 
+// Authenticated request to admit a LIMIT order into the Order Service.
+//
+// account_id comes from the trusted Gateway/authentication boundary and must
+// not be supplied by the public client.
+//
+// order.price and order.quantity remain exact base-10 strings at this
+// boundary. The Order Service is responsible for parsing and normalizing
+// them using the configured market definition.
+//
+// This command must never be serialized directly to the matching Kafka topic.
+message SubmitLimitOrderCommand {
+  // Authenticated account identity supplied by the trusted Gateway.
+  string account_id = 1;
+
+  // User-facing LIMIT-order submission.
+  //
+  // Contains client_order_id, market_id, side, exact decimal price,
+  // exact decimal quantity, and TimeInForce.
+  LimitOrderSubmission order = 2;
+}
+
+// Do not use this message for new Order Service admission.
+//
+// Use:
+//
+//   SubmitLimitOrderCommand
+//
+// for the authenticated Gateway -> Order Service admission boundary, and:
+//
+//   meow.exchange.matching.v1alpha1.MatchingCommand
+//
+// for Order Service -> Kafka -> matching-engine communication.
 message PlaceLimitOrderCommand {
-  // Globally unique and stable across retries.
+  option deprecated = true;
+
+  // Globally unique and stable across retries in the legacy contract.
   string command_id = 1;
 
   string order_id = 2;

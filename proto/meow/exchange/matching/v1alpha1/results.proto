@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package meow.exchange.matching.v1alpha1;
+
+import "meow/exchange/matching/v1alpha1/commands.proto";
+import "meow/exchange/matching/v1alpha1/events.proto";
+
+// Digest of the complete committed semantic matching-engine state.
+//
+// The current Rust implementation uses SHA-256 over a versioned canonical
+// state encoding.
+message MatchingStateHash {
+  // Version of the canonical state encoding being hashed.
+  //
+  // This is NOT the protobuf schema version.
+  uint32 encoding_version = 1;
+
+  // SHA-256 digest.
+  //
+  // Must contain exactly 32 bytes.
+  bytes sha256 = 2;
+}
+
+// Canonical committed result of exactly one logical matching command.
+//
+// Exactly one MatchingResult is published for every successfully committed
+// engine command, even when `events` is empty.
+message MatchingResult {
+  // The exact logical command whose processing committed this result.
+  //
+  // Echoing the command is necessary because valid matching commands can
+  // change engine state while producing zero domain events.
+  MatchingCommand command = 1;
+
+  // Per-market logical position of this committed command.
+  //
+  // The first committed command has sequence 1.
+  uint64 market_sequence = 2;
+
+  // Ordered deterministic events produced by this command.
+  //
+  // May legitimately be empty.
+  //
+  // For every element:
+  //		event_id.market_id				==	command.market_id
+  //		event_id.market_sequence	==	market_sequence
+  //
+  // event_ordinal values must be contiguous starting from 0.
+  repeated SequencedMatchingEvent events = 3;
+
+  // Hash of the complete matching-engine state after this command committed.
+  MatchingStateHash state_hash_after = 4;
+}

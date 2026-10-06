@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package meow.exchange.matching.v1alpha1;
+
+import "meow/exchange/order/v1alpha1/order.proto";
+
+// One logical command submitted to exactly one market matching stream.
+//
+// command_id is transport/application idempotency identity.
+// It is stable across publication retries and is deliberately not part of
+// the pure matching-engine Command domain type.
+//
+// market_id is the canonical numeric MarketId used by the matching engine
+// and is also the source value for the Kafka partition key.
+message MatchingCommand {
+  // Opaque logical-command identifier generated before Kafka publication.
+  //
+  // Requirements:
+  // - non-empty;
+  // - stable across retries of the same logical command;
+  // - never reused for a different semantic command.
+  string command_id = 1;
+
+  // Maps directly to Rust MarketId(u32).
+  uint32 market_id = 2;
+
+  oneof command {
+    PlaceLimitOrder place_limit_order = 10;
+    CancelOrder cancel_order = 11;
+  }
+}
+
+// Canonical LIMIT-order input accepted by the matching core.
+//
+// Human decimal parsing, market validation, tick/lot normalization,
+// balance checks, funds reservation, client-order idempotency and
+// TimeInForce validation have already happened before this message
+// is published.
+message PlaceLimitOrder {
+  // Maps directly to Rust OrderId(u64).
+  uint64 order_id = 1;
+
+  meow.exchange.order.v1alpha1.OrderSide side = 2;
+
+  // Count of configured market price ticks.
+  //
+  // Maps directly to Rust PriceTicks(i64).
+  // Must be > 0 for a placement command.
+  int64 price_ticks = 3;
+
+  // Count of configured quantity lots.
+  //
+  // Maps directly to Rust QuantityLots(i64).
+  // Must be > 0 for a placement command.
+  int64 quantity_lots = 4;
+}
+
+// Cancels the complete currently-resting remainder of an order.
+//
+// Side, price, quantity, account identity and timestamps are intentionally
+// absent because they are not cancellation inputs to the deterministic
+// core.
+message CancelOrder {
+  uint64 order_id = 1;
+}
