@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package meow.exchange.internal.order.v1alpha1;
+package meow.exchange.private.order.v1alpha1;
 
 import "meow/exchange/order/v1alpha1/order.proto";
 
