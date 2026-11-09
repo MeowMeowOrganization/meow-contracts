@@ -3,9 +3,16 @@ syntax = "proto3";
 package meow.exchange.private.order.v1alpha1;
 
 import "meow/exchange/order/v1alpha1/order.proto";
+import "google/protobuf/timestamp.proto";
 
 service OrderService {
   rpc SubmitLimitOrder(SubmitLimitOrderRequest) returns (SubmitLimitOrderResponse);
+  rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+  rpc GetOpenOrders(ListOrdersRequest) returns (ListOrdersResponse);
+  rpc GetOrderHistory(ListOrdersRequest) returns (ListOrdersResponse);
+  rpc GetOrderTrades(GetOrderTradesRequest) returns (ListTradesResponse);
+  rpc GetTradeHistory(GetTradeHistoryRequest) returns (ListTradesResponse);
 }
 
 message SubmitLimitOrderRequest {
@@ -17,4 +24,133 @@ message SubmitLimitOrderRequest {
 
 message SubmitLimitOrderResponse {
   meow.exchange.order.v1alpha1.LimitOrder order = 1;
+}
+
+// Caller is a trusted Gateway that supplies authenticated account identity.
+// This is a request to enqueue a cancel command, NOT confirmation of cancel.
+message CancelOrderRequest {
+  string account_id = 1;
+  // Canonical decimal BIGINT order ID, in (0, 2^63-1].
+  string order_id = 2;
+}
+
+enum CancelRequestStatus {
+  CANCEL_REQUEST_STATUS_UNSPECIFIED = 0;
+  CANCEL_REQUEST_STATUS_PENDING = 1;
+  CANCEL_REQUEST_STATUS_CONFIRMED = 2;
+  CANCEL_REQUEST_STATUS_REJECTED = 3;
+  CANCEL_REQUEST_STATUS_NOT_CANCELLABLE = 4;
+}
+
+message CancelOrderResponse {
+  string order_id = 1;
+  // PENDING is only a durable intent; matching may still fill this order.
+  CancelRequestStatus status = 2;
+  meow.exchange.order.v1alpha1.OrderStatus lifecycle_status = 3;
+  // Only set for a matcher-confirmed CancelRejected outcome.
+  string rejection_reason = 4;
+}
+
+// Private read-model status is not the same as the immutable admission status.
+// In particular, ADMISSION_PENDING and matcher ACCEPTED are distinct.
+enum PrivateOrderStatus {
+  PRIVATE_ORDER_STATUS_UNSPECIFIED = 0;
+  PRIVATE_ORDER_STATUS_ADMISSION_PENDING = 1;
+  PRIVATE_ORDER_STATUS_ADMISSION_REJECTED = 2;
+  PRIVATE_ORDER_STATUS_ACCEPTED = 3;
+  PRIVATE_ORDER_STATUS_OPEN = 4;
+  PRIVATE_ORDER_STATUS_PARTIALLY_FILLED = 5;
+  PRIVATE_ORDER_STATUS_FILLED = 6;
+  PRIVATE_ORDER_STATUS_CANCELED = 7;
+  PRIVATE_ORDER_STATUS_MATCHER_REJECTED = 8;
+}
+
+// Exact decimal strings for unsigned atom quantities / uint64 sequences;
+// never pass through floating point or JSON numeric types.
+message PrivateOrder {
+  string order_id = 1;
+  string account_id = 2;
+  string client_order_id = 3;
+  string market_id = 4;
+  meow.exchange.order.v1alpha1.OrderSide side = 5;
+  meow.exchange.order.v1alpha1.TimeInForce time_in_force = 6;
+  string price_decimal = 7;
+  string quantity_decimal = 8;
+  string price_units = 9;
+  string quantity_base_atoms = 10;
+  string filled_base_atoms = 11;
+  string cancelled_base_atoms = 12;
+  string remaining_base_atoms = 13;
+  int64 total_lots = 14;
+  int64 filled_lots = 15;
+  int64 cancelled_lots = 16;
+  PrivateOrderStatus status = 17;
+  string admission_status = 18;
+  string admission_rejection_code = 19;
+  string matcher_rejection_reason = 20;
+  CancelRequestStatus cancel_request_status = 21;
+  string cancel_rejection_reason = 22;
+  uint64 lifecycle_version = 23;
+  string last_market_sequence = 24;
+  google.protobuf.Timestamp created_at = 25;
+  google.protobuf.Timestamp updated_at = 26;
+  google.protobuf.Timestamp opened_at = 27;
+  google.protobuf.Timestamp terminal_at = 28;
+}
+
+message GetOrderRequest {
+  // Trusted authenticated Gateway identity; never trust public client input.
+  string account_id = 1;
+  string order_id = 2;
+}
+message GetOrderResponse { PrivateOrder order = 1; }
+
+message ListOrdersRequest {
+  string account_id = 1;
+  string market_id = 2;  // Optional exact market filter.
+  int32 page_size = 3;  // Default 50, maximum 100.
+  string page_token = 4; // Opaque scoped keyset cursor.
+}
+message ListOrdersResponse {
+  repeated PrivateOrder orders = 1;
+  string next_page_token = 2;
+}
+
+message GetOrderTradesRequest {
+  string account_id = 1;
+  string order_id = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+message GetTradeHistoryRequest {
+  string account_id = 1;
+  string market_id = 2; // Optional exact market filter.
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+enum LiquidityRole {
+  LIQUIDITY_ROLE_UNSPECIFIED = 0;
+  LIQUIDITY_ROLE_MAKER = 1;
+  LIQUIDITY_ROLE_TAKER = 2;
+}
+message PrivateTrade {
+  // Event triple is the canonical execution provenance. Never expose the
+  // counterparty's order ID through an account-scoped private response.
+  string order_id = 1;
+  string market_id = 2;
+  uint32 market_numeric_id = 3;
+  string market_sequence = 4;
+  string event_ordinal = 5;
+  LiquidityRole liquidity_role = 6;
+  meow.exchange.order.v1alpha1.OrderSide side = 7;
+  int64 price_ticks = 8;
+  int64 quantity_lots = 9;
+  string price_units = 10;
+  string quantity_base_atoms = 11;
+  google.protobuf.Timestamp applied_at = 12;
+}
+message ListTradesResponse {
+  repeated PrivateTrade trades = 1;
+  string next_page_token = 2;
 }
