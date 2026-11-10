@@ -5,20 +5,21 @@ package meow.exchange.private.order.v1alpha1;
 import "meow/exchange/order/v1alpha1/order.proto";
 import "google/protobuf/timestamp.proto";
 
+option go_package = "github.com/MeowMeowOrganization/meow-contracts/gen/go/meow/exchange/private/order/v1alpha1;orderv1alpha1";
+
 service OrderService {
   rpc SubmitLimitOrder(SubmitLimitOrderRequest) returns (SubmitLimitOrderResponse);
   rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
   rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
-  rpc GetOpenOrders(ListOrdersRequest) returns (ListOrdersResponse);
-  rpc GetOrderHistory(ListOrdersRequest) returns (ListOrdersResponse);
-  rpc GetOrderTrades(GetOrderTradesRequest) returns (ListTradesResponse);
-  rpc GetTradeHistory(GetTradeHistoryRequest) returns (ListTradesResponse);
+  rpc GetOpenOrders(GetOpenOrdersRequest) returns (GetOpenOrdersResponse);
+  rpc GetOrderHistory(GetOrderHistoryRequest) returns (GetOrderHistoryResponse);
+  rpc GetOrderTrades(GetOrderTradesRequest) returns (GetOrderTradesResponse);
+  rpc GetTradeHistory(GetTradeHistoryRequest) returns (GetTradeHistoryResponse);
 }
 
 message SubmitLimitOrderRequest {
   // Supplied by the trusted Gateway after authentication.
   string account_id = 1;
-
   meow.exchange.order.v1alpha1.LimitOrderSubmission order = 2;
 }
 
@@ -103,15 +104,31 @@ message GetOrderRequest {
   string account_id = 1;
   string order_id = 2;
 }
-message GetOrderResponse { PrivateOrder order = 1; }
 
-message ListOrdersRequest {
+message GetOrderResponse { 
+  PrivateOrder order = 1; 
+}
+
+message GetOpenOrdersRequest {
   string account_id = 1;
   string market_id = 2;  // Optional exact market filter.
   int32 page_size = 3;  // Default 50, maximum 100.
   string page_token = 4; // Opaque scoped keyset cursor.
 }
-message ListOrdersResponse {
+
+message GetOpenOrdersResponse {
+  repeated PrivateOrder orders = 1;
+  string next_page_token = 2;
+}
+
+message GetOrderHistoryRequest {
+  string account_id = 1;
+  string market_id = 2;  // Optional exact market filter.
+  int32 page_size = 3;  // Default 50, maximum 100.
+  string page_token = 4; // Opaque scoped keyset cursor.
+}
+
+message GetOrderHistoryResponse {
   repeated PrivateOrder orders = 1;
   string next_page_token = 2;
 }
@@ -122,6 +139,12 @@ message GetOrderTradesRequest {
   int32 page_size = 3;
   string page_token = 4;
 }
+
+message GetOrderTradesResponse {
+  repeated PrivateTrade trades = 1;
+  string next_page_token = 2;
+}
+
 message GetTradeHistoryRequest {
   string account_id = 1;
   string market_id = 2; // Optional exact market filter.
@@ -129,11 +152,17 @@ message GetTradeHistoryRequest {
   string page_token = 4;
 }
 
+message GetTradeHistoryResponse {
+  repeated PrivateTrade trades = 1;
+  string next_page_token = 2;
+}
+
 enum LiquidityRole {
   LIQUIDITY_ROLE_UNSPECIFIED = 0;
   LIQUIDITY_ROLE_MAKER = 1;
   LIQUIDITY_ROLE_TAKER = 2;
 }
+
 message PrivateTrade {
   // Event triple is the canonical execution provenance. Never expose the
   // counterparty's order ID through an account-scoped private response.
@@ -149,8 +178,4 @@ message PrivateTrade {
   string price_units = 10;
   string quantity_base_atoms = 11;
   google.protobuf.Timestamp applied_at = 12;
-}
-message ListTradesResponse {
-  repeated PrivateTrade trades = 1;
-  string next_page_token = 2;
 }

@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package meow.exchange.accounting.v1alpha1;
 
+option go_package = "github.com/MeowMeowOrganization/meow-contracts/gen/go/meow/exchange/accounting/v1alpha1;accountingv1alpha1";
+
 import "meow/exchange/common/v1alpha1/types.proto";
 
 enum ReservationStatus {
