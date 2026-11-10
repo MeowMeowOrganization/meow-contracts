@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package meow.exchange.marketdata.v1alpha1;
+
+import "meow/exchange/marketdata/v1alpha1/market_data.proto";
+import "meow/exchange/marketdata/v1alpha1/order_book.proto";
+import "meow/exchange/marketdata/v1alpha1/statistics.proto";
+
+// One transport-neutral outbound payload. Gateway/WebSocket framing,
+// subscription topics, backpressure and reconnect cursors are transport
+// concerns; they must not be invented as independent financial event IDs.
+message MarketDataUpdate {
+  oneof update {
+    BookSnapshot book_snapshot = 1;
+    BookDelta book_delta = 2;
+    TradeTick trade = 3;
+    Ticker ticker = 4;
+    Candle candle = 5;
+    Stats24h stats_24h = 6;
+  }
+}

@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package meow.exchange.marketdata.v1alpha1;
+
+import "meow/exchange/market/v1alpha1/market.proto";
+
+// Immutable reference data required to project matching ticks/lots into
+// business price units and base/quote atoms during replay.
+//
+// Each (source_market_id, definition_version) pair identifies exactly one
+// definition. Never mutate a stored revision in place. The Market.market_id
+// symbol, asset identities and all three scales remain constant during the
+// lifetime of a numeric matching market. Changing tick/lot semantics while
+// orders rest requires an explicit halt/reconfiguration protocol, not an
+// ordinary update to this definition.
+message MarketProjectionDefinition {
+  // MatchingCommand.market_id / MatchingEventId.market_id.
+  uint32 source_market_id = 1;
+
+  // Monotonically increasing, nonzero revision within source_market_id.
+  uint64 definition_version = 2;
+
+  // Exact business-facing market configuration for this version.
+  meow.exchange.market.v1alpha1.Market market = 3;
+}

@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package meow.exchange.api.v1alpha1;
+
+import "google/protobuf/timestamp.proto";
+import "meow/exchange/marketdata/v1alpha1/market_data.proto";
+import "meow/exchange/marketdata/v1alpha1/order_book.proto";
+import "meow/exchange/marketdata/v1alpha1/statistics.proto";
+
+// Public, read-only market-data queries. Requests deliberately omit account
+// identity: these endpoints expose only public market observations.
+// Streaming uses MarketDataUpdate as a transport-neutral payload; an
+// authenticated/rate-limited Gateway WebSocket is designed separately.
+service MarketDataService {
+  rpc GetOrderBook(GetOrderBookRequest) returns (GetOrderBookResponse);
+  rpc ListRecentTrades(ListRecentTradesRequest) returns (ListRecentTradesResponse);
+  rpc GetTicker(GetTickerRequest) returns (GetTickerResponse);
+  rpc ListCandles(ListCandlesRequest) returns (ListCandlesResponse);
+  rpc GetStats24h(GetStats24hRequest) returns (GetStats24hResponse);
+}
+
+message GetOrderBookRequest {
+  string market_id = 1;
+  // Must be >0 and <= the service's maximum supported depth.
+  uint32 depth = 2;
+}
+
+message GetOrderBookResponse {
+  meow.exchange.marketdata.v1alpha1.BookSnapshot book = 1;
+}
+
+message ListRecentTradesRequest {
+  string market_id = 1;
+  // Bounded newest-first result. Zero selects the documented server default.
+  uint32 limit = 2;
+}
+
+message ListRecentTradesResponse {
+  repeated meow.exchange.marketdata.v1alpha1.TradeTick trades = 1;
+}
+
+message GetTickerRequest {
+  string market_id = 1;
+}
+
+message GetTickerResponse {
+  meow.exchange.marketdata.v1alpha1.Ticker ticker = 1;
+}
+
+message ListCandlesRequest {
+  string market_id = 1;
+  meow.exchange.marketdata.v1alpha1.CandleInterval interval = 2;
+  // Inclusive lower bound and exclusive upper bound, in UTC.
+  google.protobuf.Timestamp start_time_inclusive = 3;
+  google.protobuf.Timestamp end_time_exclusive = 4;
+  // Bounded oldest-first result. Zero selects the documented server default.
+  uint32 limit = 5;
+  // Opaque stable continuation cursor, supplied by a previous response.
+  string page_token = 6;
+}
+
+message ListCandlesResponse {
+  repeated meow.exchange.marketdata.v1alpha1.Candle candles = 1;
+  string next_page_token = 2;
+}
+
+message GetStats24hRequest {
+  string market_id = 1;
+}
+
+message GetStats24hResponse {
+  meow.exchange.marketdata.v1alpha1.Stats24h stats = 1;
+}

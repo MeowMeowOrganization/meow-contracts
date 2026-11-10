@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package meow.exchange.marketdata.v1alpha1;
+
+// Aggregated public Level-2 price level. Never contains order/account IDs.
+message BookLevel {
+  // Business price_units, exactly converted from matching price_ticks.
+  uint64 price_units = 1;
+
+  // Canonical, non-negative base-10 integer atoms. Decimal string avoids
+  // overflow when aggregating many individual orders. No decimal point.
+  string base_quantity_atoms = 2;
+}
+
+// Absolute (set-to) level quantity, NOT an additive delta.
+// base_quantity_atoms == "0" means remove the level.
+message BookLevelUpdate {
+  uint64 price_units = 1;
+  string base_quantity_atoms = 2;
+}
+
+// A coherent L2 view after a fully applied MatchingResult.
+message BookSnapshot {
+  // Business symbol, e.g. BTC-USDT.
+  string market_id = 1;
+  uint32 source_market_id = 2;
+
+  // Last completely applied per-market MatchingResult sequence (can be 0
+  // before any commands). This is not a Kafka offset.
+  uint64 market_sequence = 3;
+  uint64 market_definition_version = 4;
+
+  // Number of visible levels per side. Must be > 0 in public snapshots.
+  // All book deltas used with this snapshot must have the SAME depth.
+  uint32 depth = 5;
+
+  // Highest bid first; lowest ask first; no duplicate prices and no zero lots.
+  repeated BookLevel bids = 6;
+  repeated BookLevel asks = 7;
+}
+
+// Exactly one BookDelta per fully processed MatchingResult, INCLUDING
+// zero-event results and outcomes that do not change visible book levels.
+//
+// previous_market_sequence must equal market_sequence - 1. Zero-length
+// updates are legal. A client detects gaps without relying on Kafka offsets.
+message BookDelta {
+  string market_id = 1;
+  uint32 source_market_id = 2;
+  uint64 previous_market_sequence = 3;
+  uint64 market_sequence = 4;
+  uint64 market_definition_version = 5;
+  uint32 depth = 6;
+
+  // Absolute quantities for levels whose visible state changed. When top-N
+  // membership changes, emit both evicted levels (quantity "0") and newly
+  // visible levels, even if their underlying quantity was unchanged.
+  repeated BookLevelUpdate bid_updates = 7;
+  repeated BookLevelUpdate ask_updates = 8;
+}

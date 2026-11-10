@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package meow.exchange.matching.v1alpha1;
+
+import "google/protobuf/timestamp.proto";
+import "meow/exchange/matching/v1alpha1/results.proto";
+
+// Transport-level envelope for one complete, durably recorded MatchingResult.
+// This is NOT emitted from the pure deterministic matcher. The publisher must
+// assign and persist metadata once; redelivery and replay reuse identical bytes.
+// Do not silently switch an existing Kafka topic from MatchingResult to this
+// type: that requires a coordinated topic/version migration.
+message CommittedMatchingResult {
+  // One result, including results with zero events. Required by consumers.
+  MatchingResult result = 1;
+
+  // UTC time at which this result was first durably recorded by the publisher,
+  // not necessarily the precise instant matching occurred. Must be non-null,
+  // valid and identical for every retry/replay of the same result.
+  google.protobuf.Timestamp recorded_at = 2;
+
+  // Nonzero, immutable MarketProjectionDefinition.definition_version used to
+  // interpret tick/lot quantities. The versioned definition must be available
+  // to every consuming projector before processing this result.
+  uint64 market_definition_version = 3;
+}

@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package meow.exchange.marketdata.v1alpha1;
+
+import "google/protobuf/timestamp.proto";
+
+// Fixed UTC intervals. A candle covers [start_time, end_time).
+enum CandleInterval {
+  CANDLE_INTERVAL_UNSPECIFIED = 0;
+  CANDLE_INTERVAL_ONE_MINUTE = 1;
+  CANDLE_INTERVAL_FIVE_MINUTES = 2;
+  CANDLE_INTERVAL_FIFTEEN_MINUTES = 3;
+  CANDLE_INTERVAL_ONE_HOUR = 4;
+  CANDLE_INTERVAL_ONE_DAY = 5;
+}
+
+// Current public ticker. Price presence is explicit because a newly opened
+// market can have no trades and/or no resting bids/asks yet.
+message Ticker {
+  string market_id = 1;
+  optional uint64 last_price_units = 2;
+  optional uint64 best_bid_price_units = 3;
+  optional uint64 best_ask_price_units = 4;
+  uint64 market_sequence = 5;
+
+  // Timestamp of the latest fully applied recorded result, if available.
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+// OHLCV for a non-empty UTC interval. Empty intervals have no Candle message.
+// Prices use exact price_units; cumulative quantities use canonical nonnegative
+// integer decimal strings to avoid a fixed-width aggregation overflow.
+message Candle {
+  string market_id = 1;
+  CandleInterval interval = 2;
+  google.protobuf.Timestamp start_time = 3;
+  google.protobuf.Timestamp end_time = 4;
+  uint64 open_price_units = 5;
+  uint64 high_price_units = 6;
+  uint64 low_price_units = 7;
+  uint64 close_price_units = 8;
+  string base_volume_atoms = 9;
+  string quote_volume_atoms = 10;
+  uint64 trade_count = 11;
+
+  // Increments for any correction/recalculation of the SAME candle key.
+  uint64 revision = 12;
+
+  // True only when the configured event-time watermark/late-arrival policy
+  // guarantees no further revisions. Do not infer this from wall-clock time.
+  bool is_final = 13;
+}
+
+// Sliding 24-hour statistics evaluated at as_of_inclusive, including trades
+// with recorded_at in (window_start_exclusive, as_of_inclusive]. The window
+// start equals as_of - 24h in UTC. Missing prices mean there were no trades.
+message Stats24h {
+  string market_id = 1;
+  google.protobuf.Timestamp window_start_exclusive = 2;
+  google.protobuf.Timestamp as_of_inclusive = 3;
+  optional uint64 open_price_units = 4;
+  optional uint64 high_price_units = 5;
+  optional uint64 low_price_units = 6;
+  optional uint64 close_price_units = 7;
+  string base_volume_atoms = 8;
+  string quote_volume_atoms = 9;
+  uint64 trade_count = 10;
+
+  // Empty when no trades. Otherwise signed integer basis points derived from
+  // (close - open) * 10000 / open using checked arbitrary-width integers,
+  // truncated toward zero. 'open' is the earliest trade in the 24h window,
+  // not the previous close outside that window.
+  string price_change_bps = 11;
+}

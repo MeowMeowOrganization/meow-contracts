@@ -2,9 +2,14 @@ syntax = "proto3";
 
 package meow.exchange.marketdata.v1alpha1;
 
+import "google/protobuf/timestamp.proto";
 import "meow/exchange/order/v1alpha1/order.proto";
 
+// Public execution projection. No account ownership or financial settlement
+// data. Fields 1-7 are preserved for wire and source compatibility.
 message TradeTick {
+  // Stable ID derived from canonical MatchingEventId. Must agree with
+  // TradeExecuted.trade_id for the same execution; never generate a UUID.
   string trade_id = 1;
   string market_id = 2;
 
@@ -15,5 +20,20 @@ message TradeTick {
   // The taker/aggressor side.
   meow.exchange.order.v1alpha1.OrderSide aggressor_side = 6;
 
+  // Source MatchingEventId.market_sequence, NOT a unique trade sequence.
   uint64 match_sequence = 7;
+
+  // Source MatchingEventId.event_ordinal, zero-based within the result.
+  // Distinguishes multiple executions under one market sequence.
+  uint64 event_ordinal = 8;
+
+  // Inherited unchanged from CommittedMatchingResult.recorded_at. This is
+  // not guaranteed to be the exact matching execution wall-clock instant.
+  google.protobuf.Timestamp recorded_at = 9;
+
+  // Source MatchingEventId.market_id (numeric), not market_id (symbol).
+  uint32 source_market_id = 10;
+
+  // Source CommittedMatchingResult.market_definition_version.
+  uint64 market_definition_version = 11;
 }
