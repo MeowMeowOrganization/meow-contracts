@@ -2,10 +2,14 @@ syntax = "proto3";
 
 package meow.exchange.api.v1alpha1;
 
+import "google/protobuf/timestamp.proto";
 import "meow/exchange/order/v1alpha1/order.proto";
 
 service TradingService {
   rpc SubmitLimitOrder(SubmitLimitOrderRequest) returns (SubmitLimitOrderResponse);
+  rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+  rpc GetOpenOrders(GetOpenOrdersRequest) returns (GetOpenOrdersResponse);
 }
 
 message SubmitLimitOrderRequest {
@@ -17,4 +21,83 @@ message SubmitLimitOrderRequest {
 message SubmitLimitOrderResponse {
   string order_id = 1;
   meow.exchange.order.v1alpha1.OrderStatus status = 2;
+}
+
+message CancelOrderRequest {
+  // Positive, canonical decimal representation of a signed BIGINT order ID.
+  // account_id is deliberately absent; the Gateway derives it from auth.
+  string order_id = 1;
+}
+
+// A cancellation request can be pending while matching is still in flight.
+// CONFIRMED, not PENDING, indicates that cancellation was confirmed.
+enum CancelRequestStatus {
+  CANCEL_REQUEST_STATUS_UNSPECIFIED = 0;
+  CANCEL_REQUEST_STATUS_PENDING = 1;
+  CANCEL_REQUEST_STATUS_CONFIRMED = 2;
+  CANCEL_REQUEST_STATUS_REJECTED = 3;
+  CANCEL_REQUEST_STATUS_NOT_CANCELLABLE = 4;
+}
+
+message CancelOrderResponse {
+  string order_id = 1;
+  CancelRequestStatus status = 2;
+  // May be UNSPECIFIED while the durable cancellation intent is pending.
+  meow.exchange.order.v1alpha1.OrderStatus lifecycle_status = 3;
+}
+
+message GetOrderRequest {
+  // No account_id: only the authenticated account can be queried.
+  string order_id = 1;
+}
+
+message GetOrderResponse {
+  OrderView order = 1;
+}
+
+message GetOpenOrdersRequest {
+  // Optional market filter. Empty means all markets owned by the account.
+  string market_id = 1;
+  // Optional. Backend defaults to 50 and caps at 100.
+  int32 page_size = 2;
+  // Opaque, account-scoped cursor. Do not interpret it in the Gateway.
+  string page_token = 3;
+  // No account_id: the Gateway supplies verified account identity.
+}
+
+message GetOpenOrdersResponse {
+  repeated OrderView orders = 1;
+  string next_page_token = 2;
+}
+
+// Public lifecycle status distinguishes pending admission from matcher acceptance.
+enum OrderViewStatus {
+  ORDER_VIEW_STATUS_UNSPECIFIED = 0;
+  ORDER_VIEW_STATUS_ADMISSION_PENDING = 1;
+  ORDER_VIEW_STATUS_ADMISSION_REJECTED = 2;
+  ORDER_VIEW_STATUS_ACCEPTED = 3;
+  ORDER_VIEW_STATUS_OPEN = 4;
+  ORDER_VIEW_STATUS_PARTIALLY_FILLED = 5;
+  ORDER_VIEW_STATUS_FILLED = 6;
+  ORDER_VIEW_STATUS_CANCELED = 7;
+  ORDER_VIEW_STATUS_MATCHER_REJECTED = 8;
+}
+
+// Account-scoped public projection. Deliberately does not expose account_id,
+// ledger state, internal market sequences or internal rejection diagnostics.
+message OrderView {
+  string order_id = 1;
+  string client_order_id = 2;
+  string market_id = 3;
+  meow.exchange.order.v1alpha1.OrderSide side = 4;
+  meow.exchange.order.v1alpha1.TimeInForce time_in_force = 5;
+  string price_decimal = 6;
+  string quantity_decimal = 7;
+  // Exact integer atom quantities encoded as strings (not JSON numbers).
+  string filled_base_atoms = 8;
+  string remaining_base_atoms = 9;
+  OrderViewStatus status = 10;
+  CancelRequestStatus cancel_request_status = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
 }
