@@ -10,6 +10,8 @@ import "meow/exchange/order/v1alpha1/order.proto";
 message TradeTick {
   // Stable ID derived from canonical MatchingEventId. Must agree with
   // TradeExecuted.trade_id for the same execution; never generate a UUID.
+  // Must use canonical v1 <numeric_market_id>:<market_sequence>:<event_ordinal>
+  // with canonical unsigned decimal components (see trade.proto and tradeid).
   string trade_id = 1;
   string market_id = 2;
 

@@ -46,8 +46,10 @@ message Candle {
   // Increments for any correction/recalculation of the SAME candle key.
   uint64 revision = 12;
 
-  // True only when the configured event-time watermark/late-arrival policy
-  // guarantees no further revisions. Do not infer this from wall-clock time.
+  // True only after the durable per-market max recorded_at watermark passes
+  // end_time + 48 hours. New matching results with recorded_at earlier than
+  // that watermark are rejected transactionally; final never reverts to false.
+  // Wall-clock age and Redis refresh timestamps never grant finality.
   bool is_final = 13;
 }
 
@@ -66,9 +68,13 @@ message Stats24h {
   string quote_volume_atoms = 9;
   uint64 trade_count = 10;
 
-  // Empty when no trades. Otherwise signed integer basis points derived from
-  // (close - open) * 10000 / open using checked arbitrary-width integers,
-  // truncated toward zero. 'open' is the earliest trade in the 24h window,
-  // not the previous close outside that window.
+  // Empty if there is no close within the window or no historical reference.
+  // Otherwise signed integer basis points derived from
+  // (close - reference) * 10000 / reference, truncated toward zero with
+  // arbitrary-width integer arithmetic. The reference is the price of the
+  // most recent recorded trade at or before window_start_exclusive (ties
+  // broken by descending matching sequence and event ordinal). 'open' remains
+  // the first trade within the window by matching source order, not the
+  // historical price reference. Volumes exclude trades at the cutoff.
   string price_change_bps = 11;
 }
