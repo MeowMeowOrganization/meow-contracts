@@ -9,10 +9,11 @@ import "meow/exchange/marketdata/v1alpha1/statistics.proto";
 
 // Public, read-only market-data queries. Requests deliberately omit account
 // identity: these endpoints expose only public market observations.
-// Streaming uses MarketDataUpdate as a transport-neutral payload; an
-// authenticated/rate-limited Gateway WebSocket is designed separately.
+// Streams are public and read-only. Authentication and private order events
+// are owned by the Gateway and Order Service, respectively.
 service MarketDataService {
   rpc GetOrderBook(GetOrderBookRequest) returns (GetOrderBookResponse);
+  rpc StreamOrderBook(StreamOrderBookRequest) returns (stream StreamOrderBookResponse);
   rpc ListRecentTrades(ListRecentTradesRequest) returns (ListRecentTradesResponse);
   rpc GetTicker(GetTickerRequest) returns (GetTickerResponse);
   rpc ListCandles(ListCandlesRequest) returns (ListCandlesResponse);
@@ -27,6 +28,32 @@ message GetOrderBookRequest {
 
 message GetOrderBookResponse {
   meow.exchange.marketdata.v1alpha1.BookSnapshot book = 1;
+}
+
+// A reconnect always starts with a new complete snapshot. The client must
+// replace its old local book and only then apply subsequent deltas.
+message StreamOrderBookRequest {
+  string market_id = 1;
+  // Exactly the configured durable projection depth. Zero and arbitrary
+  // smaller depths are deliberately unsupported by the streaming projector.
+  uint32 depth = 2;
+}
+
+// The first response MUST be snapshot, followed only by contiguous deltas and
+// optional heartbeats. The market_definition_version and market_sequence in
+// the book payloads are the authoritative cursor; no Kafka offset is exposed.
+message StreamOrderBookResponse {
+  oneof event {
+    meow.exchange.marketdata.v1alpha1.BookSnapshot snapshot = 1;
+    meow.exchange.marketdata.v1alpha1.BookDelta delta = 2;
+    StreamOrderBookHeartbeat heartbeat = 3;
+  }
+}
+
+// Transport keepalive only; does NOT represent a committed matching event
+// and must not advance the client's book sequence.
+message StreamOrderBookHeartbeat {
+  uint64 last_delivered_market_sequence = 1;
 }
 
 message ListRecentTradesRequest {
