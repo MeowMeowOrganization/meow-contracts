@@ -17,6 +17,7 @@ service MarketDataService {
   rpc ListRecentTrades(ListRecentTradesRequest) returns (ListRecentTradesResponse);
   rpc StreamTrades(StreamTradesRequest) returns (stream StreamTradesResponse);
   rpc GetTicker(GetTickerRequest) returns (GetTickerResponse);
+  rpc StreamTicker(StreamTickerRequest) returns (stream StreamTickerResponse);
   rpc ListCandles(ListCandlesRequest) returns (ListCandlesResponse);
   rpc GetStats24h(GetStats24hRequest) returns (GetStats24hResponse);
 }
@@ -132,6 +133,32 @@ message GetTickerRequest {
 
 message GetTickerResponse {
   meow.exchange.marketdata.v1alpha1.Ticker ticker = 1;
+}
+
+// Latest-state, NOT an event log. Every connection starts with a fresh,
+// PostgreSQL-consistent ticker snapshot. Later updates may skip matching
+// sequences (coalescing) but must strictly increase market_sequence. A
+// reconnect always replaces previous state; no resume cursor is accepted.
+// All prices are exact integers; absent optional prices mean no observation.
+message StreamTickerRequest {
+  string market_id = 1;
+}
+
+message StreamTickerResponse {
+  // Identifies the immutable market definition under which the ticker was
+  // produced. Clients must replace state on a new snapshot/version.
+  uint64 market_definition_version = 1;
+  oneof event {
+    meow.exchange.marketdata.v1alpha1.Ticker snapshot = 2;
+    meow.exchange.marketdata.v1alpha1.Ticker update = 3;
+    StreamTickerHeartbeat heartbeat = 4;
+  }
+}
+
+// Transport keepalive only; the cursor identifies the most recently
+// DELIVERED ticker, not the PostgreSQL head or a synthetic trade event.
+message StreamTickerHeartbeat {
+  uint64 last_delivered_market_sequence = 1;
 }
 
 message ListCandlesRequest {
