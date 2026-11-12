@@ -15,6 +15,7 @@ service MarketDataService {
   rpc GetOrderBook(GetOrderBookRequest) returns (GetOrderBookResponse);
   rpc StreamOrderBook(StreamOrderBookRequest) returns (stream StreamOrderBookResponse);
   rpc ListRecentTrades(ListRecentTradesRequest) returns (ListRecentTradesResponse);
+  rpc StreamTrades(StreamTradesRequest) returns (stream StreamTradesResponse);
   rpc GetTicker(GetTickerRequest) returns (GetTickerResponse);
   rpc ListCandles(ListCandlesRequest) returns (ListCandlesResponse);
   rpc GetStats24h(GetStats24hRequest) returns (GetStats24hResponse);
@@ -64,6 +65,65 @@ message ListRecentTradesRequest {
 
 message ListRecentTradesResponse {
   repeated meow.exchange.marketdata.v1alpha1.TradeTick trades = 1;
+}
+
+// A new subscription without resume_after starts LIVE at a durable head
+// watermark and does not invent a historical trade snapshot.
+// Reconnection requires the exact cursor last durably processed by the client.
+message StreamTradesRequest {
+  string market_id = 1;
+  TradeStreamCursor resume_after = 2;
+}
+
+// sequence_complete=false means the caller processed one particular public
+// TradeTick identified by (market_sequence,event_ordinal), but not necessarily
+// all the trades in that matching result. This permits lossless mid-result
+// reconnect. sequence_complete=true means the entire matching result has been
+// processed and event_ordinal MUST be zero. Zero market_sequence is invalid.
+message TradeStreamCursor {
+  uint64 market_sequence = 1;
+  uint64 event_ordinal = 2;
+  bool sequence_complete = 3;
+  uint64 market_definition_version = 4;
+}
+
+message StreamTradesResponse {
+  oneof event {
+    StreamTradesStarted started = 1;
+    meow.exchange.marketdata.v1alpha1.TradeTick trade = 2;
+    StreamTradesSequenceEnd sequence_end = 3;
+    StreamTradesHeartbeat heartbeat = 4;
+  }
+}
+
+// Delivered first. For LIVE, head_market_sequence is the inclusive baseline:
+// only executions from subsequent matching sequences will be streamed. For
+// REPLAY, the stream replays from resume_after up to this head, then continues
+// live. Clients should persist cursors after processing each event.
+message StreamTradesStarted {
+  enum Mode {
+    MODE_UNSPECIFIED = 0;
+    MODE_LIVE = 1;
+    MODE_REPLAY = 2;
+  }
+  Mode mode = 1;
+  uint64 head_market_sequence = 2;
+  uint64 replay_floor_market_sequence = 3;
+  uint64 market_definition_version = 4;
+}
+
+// Emitted after ALL trades of a trade-bearing matching result. No event is
+// emitted for sequences with zero trades. Clients can persist a completed
+// sequence cursor after this event and use it for exact replay.
+message StreamTradesSequenceEnd {
+  uint64 market_sequence = 1;
+  uint64 market_definition_version = 2;
+}
+
+// A transport keepalive carrying only the last completely delivered result
+// cursor; it does NOT imply that no trades exist in later sequences.
+message StreamTradesHeartbeat {
+  uint64 last_completed_market_sequence = 1;
 }
 
 message GetTickerRequest {
